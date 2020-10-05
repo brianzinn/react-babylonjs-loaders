@@ -1,6 +1,6 @@
 import React, { useContext, useState } from 'react';
-import { AbstractAssetTask, AssetsManager, EventState, IAssetsProgressEvent, Nullable, Scene, TextureAssetTask } from "@babylonjs/core";
-import { useScene } from "babylonjs-hook";
+import { AbstractAssetTask, AssetsManager, EventState, IAssetsProgressEvent, Nullable, Scene, TextureAssetTask } from '@babylonjs/core';
+import { useScene } from 'babylonjs-hook';
 
 export enum TaskType {
     Binary = 'Binary',
@@ -17,7 +17,7 @@ export type BinaryTask = {
 export type MeshTask = {
     taskType: TaskType.Mesh
     name: string
-    meshesNames: any
+    meshesNames?: any
     rootUrl: string
     sceneFilename: string
 }
@@ -59,7 +59,7 @@ export const AssetManagerContextProvider: React.FC<AssetManagerContextProviderPr
 }
 
 export type AssetManagerOptions = {
-    useDefaultLoadingScreen: boolean,
+    useDefaultLoadingScreen?: boolean,
     reportProgress?: boolean, // TODO: improve name.  this is the opt-out of reporting (can trigger many re-renders).
     scene?: Scene
 }
@@ -179,7 +179,7 @@ const useAssetManagerWithCache = () => {
                 ? new Promise<AssetManagerResult>(resolve => resolve(createResultFromTasks(cachedTasks)))
                 : new Promise<AssetManagerResult>((resolve, reject) => {
                 let failed = false
-                assetManager.useDefaultLoadingScreen = opts.useDefaultLoadingScreen;
+                assetManager.useDefaultLoadingScreen = opts.useDefaultLoadingScreen ?? false;
                 assetManager.onFinish = (tasks: AbstractAssetTask[]) => {
                     // whether it failed or not - we cache all results
                     tasks.forEach(task => {
