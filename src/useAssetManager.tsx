@@ -47,7 +47,7 @@ export type AssetManagerProgressType = {
 
 export type AssetManagerContextProviderProps = {
     startProgress?: AssetManagerProgressType,
-    children: any,
+    children: React.ReactNode,
 }
 
 export const AssetManagerContextProvider: React.FC<AssetManagerContextProviderProps> =  (props: AssetManagerContextProviderProps) => {
@@ -86,8 +86,9 @@ type AssetManagerResult = {
  * This has limited functionality and only works for limited asset types.
  *
  * This is an experimental API and *WILL* change.
+ * TODO: function signature is not any.
  */
-const useAssetManagerWithCache = () => {
+const useAssetManagerWithCache = (): (tasks: Task[], options?: AssetManagerOptions) => any => {
     // we need our own memoized cache. useMemo, useState, etc. fail miserably - throwing a promise forces the component to remount.
     let suspenseCache: Record<string, () => Nullable<AssetManagerResult>> = {};
     let suspenseScene: Nullable<Scene> = null;
@@ -105,7 +106,7 @@ const useAssetManagerWithCache = () => {
         }
 
         const assetManagerContext = useContext<AssetManagerContextType>(AssetManagerContext);
-        const scene = opts.scene || hookScene!;
+        const scene: Scene = opts.scene || hookScene!;
 
         if (suspenseScene == null) {
             suspenseScene = scene;
@@ -198,6 +199,16 @@ const useAssetManagerWithCache = () => {
                 };
 
                 if (opts.reportProgress !== false && assetManagerContext !== undefined) {
+                    // progress isn't reported until first asset is loaded.  we want to update context right away (this breaks typings, if @babylonjs/core behaviour was expected).
+                    // probably we just want to make everything Nullable and have end-user treat these as not started...
+                    const notStartedEventData = {
+                        remainingCount: tasks.length,
+                        totalCount: tasks.length
+                    } as IAssetsProgressEvent;
+                    assetManagerContext!.updateProgress({
+                        eventData: notStartedEventData,
+                        eventState: ({} as EventState)
+                    });
                     assetManager.onProgressObservable.add((eventData: IAssetsProgressEvent, eventState: EventState) => {
                         // console.log('progress update received:', eventData, eventState);
                         assetManagerContext!.updateProgress({eventData, eventState});

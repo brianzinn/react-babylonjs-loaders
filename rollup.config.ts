@@ -9,7 +9,7 @@ const pkg = require('./package.json')
 const libraryName = 'react-babylonjs-loaders'
 
 export default {
-  input: `src/${libraryName}.tsx`,
+  input: `src/${libraryName}.ts`,
   output: [
     { file: pkg.module, format: 'es', sourcemap: true },
   ],
