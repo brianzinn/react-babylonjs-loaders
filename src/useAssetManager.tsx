@@ -79,7 +79,7 @@ const getTaskKey = (task: Task): string | undefined => {
 
 type AssetManagerResult = {
     tasks: AbstractAssetTask[],
-    map: Record<string, AbstractAssetTask>
+    taskNameMap: Record<string, AbstractAssetTask>
 }
 
 /**
@@ -88,14 +88,14 @@ type AssetManagerResult = {
  * This is an experimental API and *WILL* change.
  * TODO: function signature is not any.
  */
-const useAssetManagerWithCache = (): (tasks: Task[], options?: AssetManagerOptions) => any => {
+const useAssetManagerWithCache = (): (tasks: Task[], options?: AssetManagerOptions) => AssetManagerResult => {
     // we need our own memoized cache. useMemo, useState, etc. fail miserably - throwing a promise forces the component to remount.
-    let suspenseCache: Record<string, () => Nullable<AssetManagerResult>> = {};
+    let suspenseCache: Record<string, () => AssetManagerResult> = {};
     let suspenseScene: Nullable<Scene> = null;
 
     let tasksCompletedCache: Record<string, AbstractAssetTask> = {};
 
-    return (tasks: Task[], options?: AssetManagerOptions) => {
+    return (tasks: Task[], options?: AssetManagerOptions): AssetManagerResult => {
         const hookScene = useScene();
         const opts = options || {
             useDefaultLoadingScreen: false
@@ -135,7 +135,7 @@ const useAssetManagerWithCache = (): (tasks: Task[], options?: AssetManagerOptio
         //     }
         // });
 
-        const createGetAssets = (tasks: Task[]): () => Nullable<AssetManagerResult> => {
+        const createGetAssets = (tasks: Task[]): () => AssetManagerResult => {
             if (!Array.isArray(tasks)) {
                 throw new Error('Asset Manager tasks must be an array')
             }
@@ -169,11 +169,11 @@ const useAssetManagerWithCache = (): (tasks: Task[], options?: AssetManagerOptio
             })
 
             const createResultFromTasks = (tasks: AbstractAssetTask[]): AssetManagerResult => {
-                const map = tasks.reduce<Record<string, AbstractAssetTask>>((prev: Record<string, AbstractAssetTask>, cur: AbstractAssetTask) => {
+                const taskNameMap = tasks.reduce<Record<string, AbstractAssetTask>>((prev: Record<string, AbstractAssetTask>, cur: AbstractAssetTask) => {
                     prev[cur.name] = cur
                     return prev;
                 }, {});
-                return { tasks, map};
+                return { tasks, taskNameMap};
             }
 
             const taskPromise = (tasks.length === cachedTasks.length)
@@ -199,18 +199,7 @@ const useAssetManagerWithCache = (): (tasks: Task[], options?: AssetManagerOptio
                 };
 
                 if (opts.reportProgress !== false && assetManagerContext !== undefined) {
-                    // progress isn't reported until first asset is loaded.  we want to update context right away (this breaks typings, if @babylonjs/core behaviour was expected).
-                    // probably we just want to make everything Nullable and have end-user treat these as not started...
-                    const notStartedEventData = {
-                        remainingCount: tasks.length,
-                        totalCount: tasks.length
-                    } as IAssetsProgressEvent;
-                    assetManagerContext!.updateProgress({
-                        eventData: notStartedEventData,
-                        eventState: ({} as EventState)
-                    });
                     assetManager.onProgressObservable.add((eventData: IAssetsProgressEvent, eventState: EventState) => {
-                        // console.log('progress update received:', eventData, eventState);
                         assetManagerContext!.updateProgress({eventData, eventState});
                     })
                 }
@@ -223,7 +212,7 @@ const useAssetManagerWithCache = (): (tasks: Task[], options?: AssetManagerOptio
                 assetManager.load();
             });
 
-            let result: Nullable<AssetManagerResult> = null;
+            let result: AssetManagerResult;
             let error: Nullable<Error> = null;
             let suspender: Nullable<Promise<void>> = (async () => {
                 try {
@@ -253,8 +242,7 @@ const useAssetManagerWithCache = (): (tasks: Task[], options?: AssetManagerOptio
             suspenseCache[key] = createGetAssets(tasks);
         }
 
-        const fn: () => Nullable<AssetManagerResult> = suspenseCache[key];
-        return [fn()];
+        return suspenseCache[key]();
     }
 }
 

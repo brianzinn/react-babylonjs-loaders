@@ -13,11 +13,12 @@ export default {
   output: [
     { file: pkg.module, format: 'es', sourcemap: true },
   ],
-  // Indicate here external modules you don't wanna include in your bundle (i.e.: 'lodash')
+  // external modules you don't wanna include in your bundle (all peer dependencies - there are no regular non dev dependencies)
   external: [
     'react',
     '@babylonjs/core',
-    '@babylonjs/loaders'
+    '@babylonjs/loaders',
+    'babylonjs-hook',
   ],
   watch: {
     include: 'src/**',

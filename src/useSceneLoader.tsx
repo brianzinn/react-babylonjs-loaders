@@ -2,7 +2,7 @@ import React, { useContext, useState } from 'react';
 import { SceneLoader, Scene, Nullable, ISceneLoaderPlugin, ISceneLoaderPluginAsync, AbstractMesh, IParticleSystem, Skeleton, AnimationGroup, SceneLoaderProgressEvent } from '@babylonjs/core';
 import { useScene } from 'babylonjs-hook';
 
-import { LoadedModel, LoaderStatus } from './LoadedModel';
+import { ILoadedModel, LoadedModel, LoaderStatus } from './LoadedModel';
 
 export type SceneLoaderContextType = {
     updateProgress: (progress: SceneLoaderProgressEvent) => void
@@ -16,10 +16,10 @@ export type SceneLoaderContextProviderProps = {
     children: React.ReactNode,
 }
 
-export const SceneLoaderContextProvider: React.FC<SceneLoaderContextProviderProps> =  (props: SceneLoaderContextProviderProps) => {
+export const SceneLoaderContextProvider: React.FC<SceneLoaderContextProviderProps> = (props: SceneLoaderContextProviderProps) => {
     const [progress, setProgress] = useState<Nullable<SceneLoaderProgressEvent>>(null);
 
-    return (<SceneLoaderContext.Provider value={{lastProgress: progress, updateProgress: setProgress}}>
+    return (<SceneLoaderContext.Provider value={{ lastProgress: progress, updateProgress: setProgress }}>
         {props.children}
     </SceneLoaderContext.Provider>);
 }
@@ -50,6 +50,12 @@ export type SceneLoaderOptions = {
     reportProgress?: boolean
 
     scene?: Scene
+
+    /**
+     * Access to loaded model as soon as it is loaded, so it provides
+     * a way to hide or scale the meshes before the first render.
+     */
+    onModelLoaded?: (loadedModel: ILoadedModel) => void
 }
 
 /**
@@ -58,15 +64,14 @@ export type SceneLoaderOptions = {
  * This is an experimental API and *WILL* change.
  * TODO: function signature is not any.
  */
-const useSceneLoaderWithCache = () : (rootUrl: string, sceneFilename: string, pluginExtension?: string, options?: SceneLoaderOptions) => any => {
+const useSceneLoaderWithCache = (): (rootUrl: string, sceneFilename: string, pluginExtension?: string, options?: SceneLoaderOptions) => LoadedModel => {
     // we need our own memoized cache. useMemo, useState, etc. fail miserably - throwing a promise forces the component to remount.
-    let suspenseCache: Record<string, () => Nullable<LoadedModel>> = {};
+    let suspenseCache: Record<string, () => LoadedModel> = {};
     let suspenseScene: Nullable<Scene> = null;
 
-    let tasksCompletedCache: Record<string, LoadedModel> = {};
+    // let tasksCompletedCache: Record<string, LoadedModel> = {};
 
-    return (rootUrl: string, sceneFilename: string, pluginExtension?: string, options?: SceneLoaderOptions) => {
-
+    return (rootUrl: string, sceneFilename: string, pluginExtension?: string, options?: SceneLoaderOptions): LoadedModel => {
         const opts: SceneLoaderOptions = options || {};
         const hookScene = useScene();
         if (opts.scene === undefined && hookScene === null) {
@@ -80,20 +85,18 @@ const useSceneLoaderWithCache = () : (rootUrl: string, sceneFilename: string, pl
         } else {
             if (suspenseScene !== scene) {
                 // console.log('new scene detected - clearing useAssetManager cache');
-                // new scene detected.  clearing all caches.
                 suspenseCache = {};
                 // NOTE: could keep meshes with mesh.serialize and Mesh.Parse
                 // Need to research how to do with textures, etc.
                 // browser cache should make the load fast in most cases
-                tasksCompletedCache = {};
+                // tasksCompletedCache = {};
                 suspenseScene = scene;
             }
         }
 
-        
         const sceneLoaderContext = useContext<SceneLoaderContextType>(SceneLoaderContext);
 
-        const createSceneLoader = (): () => Nullable<LoadedModel> => {
+        const createSceneLoader = (): () => LoadedModel => {
             const taskPromise = new Promise<LoadedModel>((resolve, reject) => {
                 let loadedModel = new LoadedModel()
 
@@ -130,18 +133,10 @@ const useSceneLoaderWithCache = () : (rootUrl: string, sceneFilename: string, pl
                         loadedModel.status = LoaderStatus.Loaded;
 
                         if (opts.scaleToDimension) {
-                            const boundingInfo = loadedModel.boundingInfo; // will be null when no meshes are loaded
-                            if (boundingInfo) {
-                                const longestDimension = Math.max(
-                                    Math.abs(boundingInfo.minimum.x - boundingInfo.maximum.x),
-                                    Math.abs(boundingInfo.minimum.y - boundingInfo.maximum.y),
-                                    Math.abs(boundingInfo.minimum.z - boundingInfo.maximum.z)
-                                );
-
-                                const dimension = opts.scaleToDimension / longestDimension;
-                                loadedModel.rootMesh.scaling.scaleInPlace(dimension);
-                                loadedModel.scaleToDimension = opts.scaleToDimension;
-                            }
+                            loadedModel.scaleTo(opts.scaleToDimension);
+                        }
+                        if (options?.onModelLoaded) {
+                            options.onModelLoaded(loadedModel);
                         }
                         resolve(loadedModel);
                     },
@@ -150,14 +145,11 @@ const useSceneLoaderWithCache = () : (rootUrl: string, sceneFilename: string, pl
                             sceneLoaderContext!.updateProgress(event);
                         }
                     },
-                    (scene: Scene, message: string, exception?: any): void => {
+                    (_: Scene, message: string, exception?: any): void => {
                         reject(exception ?? message);
                     },
                     pluginExtension
                 )
-
-                // TODO: could set initial progress to zero?
-                // sceneLoaderContext?.updateProgress(event);
 
                 if (loader) {
                     loadedModel.loaderName = loader.name
@@ -166,7 +158,7 @@ const useSceneLoaderWithCache = () : (rootUrl: string, sceneFilename: string, pl
                 }
             });
 
-            let result: Nullable<LoadedModel> = null;
+            let result: LoadedModel;
             let error: Nullable<Error> = null;
             let suspender: Nullable<Promise<void>> = (async () => {
                 try {
@@ -196,9 +188,7 @@ const useSceneLoaderWithCache = () : (rootUrl: string, sceneFilename: string, pl
             suspenseCache[key] = createSceneLoader();
         }
 
-        const fn: () => Nullable<LoadedModel> = suspenseCache[key];
-        return [fn()];
-
+        return suspenseCache[key]();
     }
 }
 
