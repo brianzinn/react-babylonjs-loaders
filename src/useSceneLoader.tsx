@@ -1,23 +1,24 @@
 import React, { useContext, useState } from 'react';
-import { SceneLoader, Scene, Nullable, ISceneLoaderPlugin, ISceneLoaderPluginAsync, AbstractMesh, IParticleSystem, Skeleton, AnimationGroup, SceneLoaderProgressEvent } from '@babylonjs/core';
-import { useScene } from 'babylonjs-hook';
+import { SceneLoader, Scene, Nullable, ISceneLoaderPlugin, ISceneLoaderPluginAsync, AbstractMesh, IParticleSystem, Skeleton, AnimationGroup, ISceneLoaderProgressEvent } from '@babylonjs/core';
+import { useScene, SceneContext } from 'react-babylonjs';
+import '@babylonjs/loaders';
 
 import { ILoadedModel, LoadedModel, LoaderStatus } from './LoadedModel';
 
 export type SceneLoaderContextType = {
-    updateProgress: (progress: SceneLoaderProgressEvent) => void
-    lastProgress?: Nullable<SceneLoaderProgressEvent>
+    updateProgress: (progress: ISceneLoaderProgressEvent) => void
+    lastProgress?: Nullable<ISceneLoaderProgressEvent>
 } | undefined;
 
 export const SceneLoaderContext = React.createContext<SceneLoaderContextType>(undefined);
 
 export type SceneLoaderContextProviderProps = {
-    startProgress?: SceneLoaderProgressEvent,
+    startProgress?: ISceneLoaderProgressEvent,
     children: React.ReactNode,
 }
 
 export const SceneLoaderContextProvider: React.FC<SceneLoaderContextProviderProps> = (props: SceneLoaderContextProviderProps) => {
-    const [progress, setProgress] = useState<Nullable<SceneLoaderProgressEvent>>(null);
+    const [progress, setProgress] = useState<Nullable<ISceneLoaderProgressEvent>>(null);
 
     return (<SceneLoaderContext.Provider value={{ lastProgress: progress, updateProgress: setProgress }}>
         {props.children}
@@ -59,10 +60,7 @@ export type SceneLoaderOptions = {
 }
 
 /**
- * This has limited functionality and only works for limited asset types.
- *
- * This is an experimental API and *WILL* change.
- * TODO: function signature is not any.
+ * A cached version of SceneLoader with a Suspense cache.
  */
 const useSceneLoaderWithCache = (): (rootUrl: string, sceneFilename: string, pluginExtension?: string, options?: SceneLoaderOptions) => LoadedModel => {
     // we need our own memoized cache. useMemo, useState, etc. fail miserably - throwing a promise forces the component to remount.
@@ -73,7 +71,14 @@ const useSceneLoaderWithCache = (): (rootUrl: string, sceneFilename: string, plu
 
     return (rootUrl: string, sceneFilename: string, pluginExtension?: string, options?: SceneLoaderOptions): LoadedModel => {
         const opts: SceneLoaderOptions = options || {};
+
         const hookScene = useScene();
+
+        console.log('useScene', useScene, hookScene);
+
+        const fullContext = useContext(SceneContext);
+        console.log('full context:', fullContext);
+
         if (opts.scene === undefined && hookScene === null) {
             throw new Error('useSceneLoader can only be used inside a Scene component (or pass scene as an option)')
         }
@@ -140,7 +145,7 @@ const useSceneLoaderWithCache = (): (rootUrl: string, sceneFilename: string, plu
                         }
                         resolve(loadedModel);
                     },
-                    (event: SceneLoaderProgressEvent): void => {
+                    (event: ISceneLoaderProgressEvent): void => {
                         if (opts.reportProgress === true && sceneLoaderContext !== undefined) {
                             sceneLoaderContext!.updateProgress(event);
                         }

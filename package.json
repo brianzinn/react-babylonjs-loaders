@@ -1,6 +1,6 @@
 {
   "name": "react-babylonjs-loaders",
-  "version": "0.0.5",
+  "version": "0.1.0",
   "description": "react babylonjs loaders hooks and context",
   "keywords": [
     "react",
@@ -38,15 +38,15 @@
     "trailingComma": "es5"
   },
   "devDependencies": {
-    "@babylonjs/core": "^4.1.0",
-    "@babylonjs/loaders": "^4.1.0",
+    "@babylonjs/core": "^4.2.0",
+    "@babylonjs/loaders": "^4.2.0",
     "@types/node": "^12.0.8",
-    "@types/react": "^16.9.34",
-    "babylonjs-hook": "^0.0.5",
+    "@types/react": "^16.9.56",
     "cross-env": "^6.0.0",
     "lint-staged": "^9.0.0",
     "prettier": "^1.14.3",
-    "react": "^16.13.1",
+    "react": "^17.0.1",
+    "react-babylonjs": "^2.3.1",
     "rimraf": "^3.0.0",
     "rollup": "^1.15.6",
     "rollup-plugin-commonjs": "^10.0.0",
@@ -63,7 +63,7 @@
   "peerDependencies": {
     "@babylonjs/core": "4.x",
     "@babylonjs/loaders": "4.x",
-    "babylonjs-hook": "*",
-    "react": "16.x"
+    "react": ">=16",
+    "react-babylonjs": "3.x"
   }
 }

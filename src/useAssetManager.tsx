@@ -1,6 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { AbstractAssetTask, AssetsManager, EventState, IAssetsProgressEvent, Nullable, Scene, TextureAssetTask } from '@babylonjs/core';
-import { useScene } from 'babylonjs-hook';
+import { useScene } from 'react-babylonjs';
+import '@babylonjs/loaders';
 
 export enum TaskType {
     Binary = 'Binary',
